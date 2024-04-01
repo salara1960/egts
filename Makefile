@@ -19,7 +19,7 @@ else
 endif
 
 $(NAME): $(elib).o $(proc).o
-	$(CC) -o $(NAME) $(elib).o $(proc).o -L$(LIB_DIR) -lpthread -ldl
+	$(CC) -o $(NAME) $(elib).o $(proc).o -L$(LIB_DIR) -lpthread -ldl -lncurses
 	$(STRIP) $(NAME)
 $(proc).o: $(proc).c
 	$(CC) -c $(proc).c $(CFLAG) -I$(INC)

@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
 fd_set Fds;
-uint16_t tcp_port = 9999;
+uint16_t tcp_port = 9876;
 struct sockaddr_in srv_conn, cli_conn;
 struct timeval mytv;
 pthread_t tid;
@@ -16,7 +16,7 @@ socklen_t srvlen = sizeof(struct sockaddr_in);
 socklen_t clilen = srvlen;;
 char stx[256] = {0};
 
-//-------------------   for example:  ./egts 9999 info   ---------------------
+//-------------------   for example:  ./egts 9876 info   ---------------------
 
     fd_log = open(the_log, O_WRONLY | O_APPEND | O_CREAT, 0664);//open log file
     if (fd_log < 0) {
@@ -51,7 +51,7 @@ char stx[256] = {0};
 
     //--------------------------------------------------------------------
 
-    sprintf(stx, "[Ver.%s] %s Start egts server, listen port=%d\n", vers, ShowTime(time(NULL)), tcp_port);
+    sprintf(stx, "[Ver.%s] %s Start egts server\n", vers, ShowTime(time(NULL)));
     print_msg(1, stx);
     ToSysLogMsg(LOG_INFO, stx);
 
@@ -146,7 +146,7 @@ done:
         resa--; if (!resa) break;
     }
 
-    sprintf(stx, "[Ver.%s] %s Stop egts server.\n", vers, ShowTime(time(NULL)));
+    sprintf(stx, "[Ver.%s] %s Stop egts server. (timeout count=%u)\n", vers, ShowTime(time(NULL)), tout);
     print_msg(1, stx);
     ToSysLogMsg(LOG_INFO, stx);
 

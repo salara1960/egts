@@ -21,7 +21,8 @@
 #include <arpa/inet.h>
 #include <stdarg.h>
 #include <syslog.h>
-
+#include <math.h>
+#include <curses.h>
 
 //--------------------------------------------------------------------
 
@@ -30,7 +31,7 @@
 #define TIME_STR_LEN 64
 #define resp_size 1024
 #define vrem_size buf_size << 1
-#define max_data_wait 180
+#define max_data_wait 32//16//180
 #define size_imei 15
 #define size_imsi 16
 #define MaxSrcLocation 37
@@ -359,38 +360,40 @@ typedef enum {
 
 //-----------------------------------------------------------------------------------------------------------
 
-extern char const *vers;
+uint32_t tout;
 
-extern int fd_log;
+char const *vers;
 
-extern uint8_t QuitAll;
-extern uint8_t SIGHUPs;
-extern uint8_t SIGTERMs;
-extern uint8_t SIGINTs;
-extern uint8_t SIGKILLs;
-extern uint8_t SIGSEGVs;
-extern uint8_t SIGABRTs;
-extern uint8_t SIGSYSs;
-extern uint8_t SIGTRAPs;
+int fd_log;
 
-extern uint8_t QuitCli;
+uint8_t QuitAll;
+uint8_t SIGHUPs;
+uint8_t SIGTERMs;
+uint8_t SIGINTs;
+uint8_t SIGKILLs;
+uint8_t SIGSEGVs;
+uint8_t SIGABRTs;
+uint8_t SIGSYSs;
+uint8_t SIGTRAPs;
 
-extern const char *the_log;
+uint8_t QuitCli;
 
-extern int MaxLogLevel;
+const char *the_log;
+
+int MaxLogLevel;
 
 
-extern uint8_t service_flag;
+uint8_t service_flag;
 
 //------------------------------------------------------------------------------
 
-extern char *ShowTime(time_t ct);
-extern char *TimeNowPrn(char *ts);
-extern void ToSysLogMsg(int LogLevel, const char * const Msg);
-extern void print_msg(uint8_t dt, const char *fmt, ...);
-extern void GetSignal_(int sig);
+char *ShowTime(time_t ct);
+char *TimeNowPrn(char *ts);
+void ToSysLogMsg(int LogLevel, const char * const Msg);
+void print_msg(uint8_t dt, const char *fmt, ...);
+void GetSignal_(int sig);
 
-extern void *egts_nitka(void *arg);
+void *egts_nitka(void *arg);
 
 //------------------------------------------------------------------------------
 

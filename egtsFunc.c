@@ -56,9 +56,12 @@ const char *SrcLocation[] = {
 //char const *vers = "1.0";//22.08.2019
 //char const *vers = "1.1";//23.08.2019
 //char const *vers = "1.2";//26.08.2019
-char const *vers = "1.3";//27.08.2019
+//char const *vers = "1.3";//27.08.2019
+char const *vers = "1.4";//22.03.2024
 
 //-----------------------------------------------------------------------------------------------------------
+
+uint32_t tout = 0;
 
 int fd_log = -1;
 
@@ -77,7 +80,7 @@ pthread_mutex_t prn_mutex = PTHREAD_MUTEX_INITIALIZER;
 uint8_t QuitCli = 1;
 
 const char *the_log = "log.txt";
-int max_size_log = 1024 * 32000;
+int max_size_log = 1024 * 16000;
 
 int MaxLogLevel = LOG_DEBUG + 1;
 
@@ -154,6 +157,7 @@ const uint16_t Crc16Table[256] = {
     0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0
 };
 
+
 //------------------------------------------------------------------------------
 uint8_t CRC8EGTS(uint8_t *uk, uint8_t len)
 {
@@ -190,6 +194,19 @@ struct timeval tvl;
     gettimeofday(&tvl, NULL);
     ctimka = localtime(&tvl.tv_sec);
     sprintf(ts,"%02d.%02d %02d:%02d:%02d.%03d | ",
+               ctimka->tm_mday, ctimka->tm_mon + 1,
+               ctimka->tm_hour, ctimka->tm_min, ctimka->tm_sec, (int)(tvl.tv_usec/1000));
+    return ts;
+}
+//------------------------------------------------------------------------------
+char *TNP(char *ts)
+{
+struct tm *ctimka;
+struct timeval tvl;
+
+    gettimeofday(&tvl, NULL);
+    ctimka = localtime(&tvl.tv_sec);
+    sprintf(ts,"%02d.%02d %02d:%02d:%02d.%03d",
                ctimka->tm_mday, ctimka->tm_mon + 1,
                ctimka->tm_hour, ctimka->tm_min, ctimka->tm_sec, (int)(tvl.tv_usec/1000));
     return ts;
@@ -238,7 +255,7 @@ char *udt = TimeNowPrn(dts);
                     close(fd_log);
                     fd_log = -1;
                     char name[128] = {0};
-                    sprintf(name, "%u_%s", (uint32_t)time(NULL), udt);
+                    sprintf(name, "%s", TNP(dts));
                     rename(the_log, name);
                     fd_log = open(the_log, O_WRONLY | O_APPEND | O_CREAT, 0664); //create new file
                     if (fd_log <= 0) sprintf(name, "%sVer.%s Can't open file %s (%d)\n", udt, vers, the_log, fd_log);
@@ -790,8 +807,8 @@ uint16_t calc_CRC16 = CRC16EGTS(from_cli, flen - 2);
                                     if (sr_pos_data->LAHS) strcpy(vr1, "South"); else strcpy(vr1, "North");
                                     if (sr_pos_data->LOHS) strcpy(vr2, "West");  else strcpy(vr2, "Ost");
                                     tim = sr_pos_data->NTM + UTS2010;
-                                    latit  = sr_pos_data->LAT;    flatit  = latit;   flatit  = (flatit * 90.0)   / 0xffffffff;
-                                    longit = sr_pos_data->LONG;   flongit = longit;  flongit = (flongit * 180.0) / 0xffffffff;
+                                    latit  = sr_pos_data->LAT;    flatit  = latit;   flatit  = (flatit * 90.0)   / 0xffffffff;  //flatit  *= (180 / M_PI);
+                                    longit = sr_pos_data->LONG;   flongit = longit;  flongit = (flongit * 180.0) / 0xffffffff;  //flongit *= (180 / M_PI);
                                     speed = (sr_pos_data->SPD & 0x3fff) / 10;
                                     dir = sr_pos_data->DIR;   if (sr_pos_data->SPD & 0x8000) dir |= 0x100;
                                     sprintf(srst+strlen(srst),
@@ -1009,6 +1026,7 @@ void *egts_nitka(void *arg)
 {
 uint8_t from_client[buf_size];
 uint8_t to_client[buf_size];
+char stx[2048];
 char tps[vrem_size];
 char dev[size_imei + 1] = {0};
 int lenrecv = 0, lenrecv_tmp = 0, ready = 0, Vixod = 0, uk = 0, client = -1, dl = 0, ack = 0, to_client_len = 0;
@@ -1024,6 +1042,10 @@ const uint8_t test_rec[24] = {
     0x01, 0x00, 0x03, 0x0B, 0x00, 0x0B, 0x00, 0x01, 0x00, 0x01, 0xC2,
     0x04, 0x00, 0x01, 0x00, 0x58, 0x01, 0x01, 0x09, 0x01, 0x00, 0x00, 0xE7, 0x3C
 };
+uint32_t metka = 0;
+int8_t nach = 1;
+uint32_t rx_tmr = 0, rx_tmr_last = 1;
+
 
 
     if (service_flag) {
@@ -1038,7 +1060,7 @@ const uint8_t test_rec[24] = {
     print_msg(1, "[%s] Start thread (socket %d)\n", dev, client);
 
     memset(from_client, 0, buf_size);
-    gtmr = get_timer_sec(max_data_wait);
+    gtmr = get_timer_sec(180);//max_data_wait);
 
     while (!Vixod) {
 
@@ -1081,6 +1103,23 @@ const uint8_t test_rec[24] = {
         if (ready)  {
             tmr = 0;
             if (lenrecv) {
+                //
+                if (nach) {
+                    metka = get_timer_sec(0);
+                    nach = 0;
+                } else {
+                    rx_tmr = get_timer_sec(0) - metka;
+                    if (rx_tmr > (rx_tmr_last << 1)) {
+                        print_msg(1, "[%s] New timeout period : %u (%u)\n", dev, rx_tmr_last, rx_tmr);
+                        rx_tmr_last = rx_tmr;
+                    }
+                }
+                //
+                sprintf(stx, "[%s] Recv : ", dev);
+                for (int k = 0; k < lenrecv; k++) sprintf(stx+strlen(stx), " %02X", from_client[k]);
+                strcat(stx, "\n");
+                print_msg(1, stx);
+                //
                 to_client_len = egts_parse(dev, &min_hdr, from_client, lenrecv, to_client, 1);
                 if (to_client_len) {
                     sprintf(tps, "[%s] Send to device(%d):", dev, to_client_len);
@@ -1104,7 +1143,9 @@ const uint8_t test_rec[24] = {
         if (QuitAll) break;
 
         if (check_delay_sec(gtmr)) {
-            print_msg(1, "[%s] Timeout ....(%d sec)\n", dev, max_data_wait);
+            tout++;
+            print_msg(1, "[%s] ***** Timeout - no data from client, counter #%u (%d sec) *****\n", dev, tout, max_data_wait);
+            beep();
             break;
         }
 
